@@ -1,0 +1,260 @@
+name: Test All Runner Labels
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  # Test standard CPU runners
+  test-ci-cpu:
+    runs-on: ci-cpu
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test runner environment
+        run: |
+          echo "🖥️  Testing ci-cpu runner"
+          echo "Runner name: $RUNNER_NAME"
+          echo "Runner OS: $RUNNER_OS"
+          echo "Runner architecture: $RUNNER_ARCH"
+          echo "Available CPU cores: $(nproc)"
+          echo "Available memory: $(free -h)"
+          echo "Disk space: $(df -h /)"
+          
+      - name: Test Docker availability
+        run: |
+          echo "🐳 Testing Docker in ci-cpu runner"
+          docker --version
+          docker info
+          docker run --rm hello-world
+
+  test-data-processing-cpu:
+    runs-on: data-processing-cpu
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test runner environment
+        run: |
+          echo "📊 Testing data-processing-cpu runner"
+          echo "Runner name: $RUNNER_NAME"
+          echo "Available CPU cores: $(nproc)"
+          echo "Available memory: $(free -h)"
+          
+      - name: Test Python for data processing
+        run: |
+          python3 --version
+          pip3 --version
+          echo "Testing data processing capabilities"
+
+  test-system-test-cpu:
+    runs-on: system-test-cpu
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test runner environment
+        run: |
+          echo "🧪 Testing system-test-cpu runner"
+          echo "Runner name: $RUNNER_NAME"
+          echo "Available CPU cores: $(nproc)"
+          echo "Available memory: $(free -h)"
+          
+      - name: Test system capabilities
+        run: |
+          echo "Testing system test capabilities"
+          curl --version
+          wget --version
+
+  # Test GPU runners (only if GPU nodes are available)
+  test-ci-gpu:
+    runs-on: ci-gpu
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test runner environment
+        run: |
+          echo "🎮 Testing ci-gpu runner"
+          echo "Runner name: $RUNNER_NAME"
+          echo "Available CPU cores: $(nproc)"
+          echo "Available memory: $(free -h)"
+          
+      - name: Test GPU availability
+        run: |
+          echo "🚀 Testing GPU availability"
+          if command -v nvidia-smi &> /dev/null; then
+            nvidia-smi
+            echo "GPU detected and working!"
+          else
+            echo "GPU tools not available, but runner is working"
+          fi
+
+  test-data-processing-gpu:
+    runs-on: data-processing-gpu
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test runner environment
+        run: |
+          echo "📊🎮 Testing data-processing-gpu runner"
+          echo "Runner name: $RUNNER_NAME"
+          echo "Available CPU cores: $(nproc)"
+          echo "Available memory: $(free -h)"
+          
+      - name: Test GPU for ML workloads
+        run: |
+          echo "Testing GPU for ML/data processing"
+          if command -v nvidia-smi &> /dev/null; then
+            nvidia-smi
+          else
+            echo "GPU tools not available, but runner is working"
+          fi
+
+  test-system-test-gpu:
+    runs-on: system-test-gpu
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test runner environment
+        run: |
+          echo "🧪🎮 Testing system-test-gpu runner"
+          echo "Runner name: $RUNNER_NAME"
+          echo "Available CPU cores: $(nproc)"
+          echo "Available memory: $(free -h)"
+
+  # Test Express runners (high priority)
+  test-ci-cpu-express:
+    runs-on: ci-cpu-express
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test express runner environment
+        run: |
+          echo "⚡ Testing ci-cpu-express runner (high priority)"
+          echo "Runner name: $RUNNER_NAME"
+          echo "Available CPU cores: $(nproc)"
+          echo "Available memory: $(free -h)"
+          echo "This should have more resources than standard runners"
+          
+      - name: Test high-performance workload
+        run: |
+          echo "🚀 Testing high-performance capabilities"
+          # Simulate CPU-intensive task
+          time python3 -c "
+          import time
+          start = time.time()
+          # Simple CPU test
+          result = sum(i*i for i in range(1000000))
+          end = time.time()
+          print(f'CPU test completed in {end-start:.2f} seconds')
+          print(f'Result: {result}')
+          "
+
+  test-ci-gpu-express:
+    runs-on: ci-gpu-express
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test express GPU runner environment
+        run: |
+          echo "⚡🎮 Testing ci-gpu-express runner (high priority GPU)"
+          echo "Runner name: $RUNNER_NAME"
+          echo "Available CPU cores: $(nproc)"
+          echo "Available memory: $(free -h)"
+          echo "This should have more resources than standard GPU runners"
+          
+      - name: Test GPU express capabilities
+        run: |
+          echo "🚀 Testing high-performance GPU capabilities"
+          if command -v nvidia-smi &> /dev/null; then
+            nvidia-smi
+            echo "Express GPU runner is working!"
+          else
+            echo "GPU tools not available, but express runner is working"
+          fi
+
+  # Summary job that depends on all others
+  test-summary:
+    needs: [
+      test-ci-cpu,
+      test-data-processing-cpu, 
+      test-system-test-cpu,
+      test-ci-gpu,
+      test-data-processing-gpu,
+      test-system-test-gpu,
+      test-ci-cpu-express,
+      test-ci-gpu-express
+    ]
+    runs-on: ci-cpu  # Use standard runner for summary
+    if: always()  # Run even if some jobs fail
+    steps:
+      - name: Test Results Summary
+        run: |
+          echo "🎉 Runner Label Test Summary"
+          echo "================================"
+          echo "✅ ci-cpu: ${{ needs.test-ci-cpu.result }}"
+          echo "✅ data-processing-cpu: ${{ needs.test-data-processing-cpu.result }}"
+          echo "✅ system-test-cpu: ${{ needs.test-system-test-cpu.result }}"
+          echo "✅ ci-gpu: ${{ needs.test-ci-gpu.result }}"
+          echo "✅ data-processing-gpu: ${{ needs.test-data-processing-gpu.result }}"
+          echo "✅ system-test-gpu: ${{ needs.test-system-test-gpu.result }}"
+          echo "✅ ci-cpu-express: ${{ needs.test-ci-cpu-express.result }}"
+          echo "✅ ci-gpu-express: ${{ needs.test-ci-gpu-express.result }}"
+          echo "================================"
+          
+          if [[ "${{ needs.test-ci-cpu.result }}" == "success" && 
+                "${{ needs.test-data-processing-cpu.result }}" == "success" && 
+                "${{ needs.test-system-test-cpu.result }}" == "success" ]]; then
+            echo "🎊 All CPU runners are working perfectly!"
+          fi
+          
+          if [[ "${{ needs.test-ci-gpu.result }}" == "success" && 
+                "${{ needs.test-data-processing-gpu.result }}" == "success" && 
+                "${{ needs.test-system-test-gpu.result }}" == "success" ]]; then
+            echo "🎊 All GPU runners are working perfectly!"
+          fi
+          
+          if [[ "${{ needs.test-ci-cpu-express.result }}" == "success" && 
+                "${{ needs.test-ci-gpu-express.result }}" == "success" ]]; then
+            echo "🎊 All Express runners are working perfectly!"
+          fi
+
+  # Optional: Build and test ROS image
+  test-ros-build:
+    runs-on: ci-cpu
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Create test Dockerfile
+        run: |
+          cat > Dockerfile << 'EOF'
+          FROM ros:humble-ros-base
+          
+          RUN apt-get update && apt-get install -y \
+              python3-colcon-common-extensions \
+              && rm -rf /var/lib/apt/lists/*
+          
+          WORKDIR /ros2_ws
+          
+          CMD ["bash", "-c", "source /opt/ros/humble/setup.bash && echo 'ROS 2 Humble is ready!' && ros2 --help"]
+          EOF
+          
+      - name: Build ROS Docker image
+        run: |
+          echo "🤖 Building ROS test image"
+          docker build -t test-ros-image .
+          
+      - name: Test ROS image
+        run: |
+          echo "🤖 Testing ROS image"
+          docker run --rm test-ros-image
